@@ -1,9 +1,14 @@
 from flask import Flask,render_template,request,jsonify
 from flask_socketio import SocketIO, send, emit, join_room, leave_room
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*"
+)
 
 ROOMS = {}
 
@@ -72,4 +77,11 @@ def handle_disconnect():
     print("user disconnected")
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True,host="0.0.0.0")
+    port = int(os.environ.get("PORT", 5000))
+
+    socketio.run(
+        app,
+        debug=False,
+        host="0.0.0.0",
+        port=port
+    )
