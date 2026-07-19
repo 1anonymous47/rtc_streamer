@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <div class="topbar">
+        <div class="logo-area">
+            <span class="pulse-icon"></span>
+            <h2>Dashboard</h2>
+        </div>
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="showPage('dashboard')">Home</button>
+            <button class="nav-btn" onclick="showPage('requests')">Requests</button>
+            <button class="nav-btn" onclick="showPage('search')">Search</button>
+            <button class="nav-btn" onclick="showPage('videochat')">Video Chat</button>
+            <button class="nav-btn logout-btn" onclick="logout()">Log Out</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div id="dashboard" class="page">
+            <div class="welcome-card">
+                <h1>Welcome Back!</h1>
+                <div class="user-badge">
+                    <span class="status-dot"></span>
+                    <p id="userdetails">Loading user...</p>
+                </div>
+                <p class="subtext">Select a tab from the menu to start messaging or searching for friends.</p>
+            </div>
+        </div>
+
+        <div id="requests" class="page">
+            <div class="card-wrapper">
+                <h1>Received Requests</h1>
+                <div id="friendrequestlist" class="list-container">
+                    </div>
+            </div>
+        </div>
+
+        <div id="search" class="page">
+            <div class="card-wrapper">
+                <h1>Search Friends</h1>
+                <div class="search-box">
+                    <label for="searchuser">Search Username</label>
+                    <input id="searchuser" type="text" placeholder="Type a username to search...">
+                </div>
+                <div id="searchuserlist" class="list-container">
+                    </div>
+            </div>
+        </div>
+
+        <div id="videochat" class="page active">
+            <div class="video-layout">
+                <div class="sidebar-users">
+                    <h3>Online Friends</h3>
+                    <div id="userslist">
+                        </div>
+                </div>
+                <div id="chatArea">
+                    <div class="empty-chat-state">
+                        <p>Select a friend from the sidebar to start a call</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="popup" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="call-animation">
+                    <span class="ring-pulse"></span>
+                </div>
+                <h3 id="callername">Inbound Call...</h3>
+                <p>Do you want to accept this video call?</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-accept" onclick="sendResponse('Yes')">Accept</button>
+                <button class="btn btn-decline" onclick="sendResponse('No')">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

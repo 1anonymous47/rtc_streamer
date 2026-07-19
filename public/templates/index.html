@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Register</title>
+
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background:#f4f4f4;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            gap:30px;
+            height:100vh;
+        }
+
+        .card{
+            width:300px;
+            background:white;
+            padding:20px;
+            border-radius:10px;
+            box-shadow:0 0 10px rgba(0,0,0,0.2);
+        }
+
+        h2{
+            text-align:center;
+        }
+
+        input{
+            width:100%;
+            padding:10px;
+            margin:8px 0;
+            box-sizing:border-box;
+        }
+
+        button{
+            width:100%;
+            padding:10px;
+            background:#007bff;
+            color:white;
+            border:none;
+            cursor:pointer;
+        }
+
+        button:hover{
+            background:#0056b3;
+        }
+
+        .message{
+            margin-top:10px;
+            text-align:center;
+            font-weight:bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Login -->
+    <div class="card">
+        <h2>Login</h2>
+
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+
+        <button onclick="login()">Login</button>
+
+        <div id="loginMessage" class="message"></div>
+    </div>
+
+    <!-- Register -->
+    <div class="card">
+        <h2>Register</h2>
+
+        <input type="email" id="regEmail" placeholder="Email">
+        <input type="text" id="regUsername" placeholder="Username">
+        <input type="password" id="regPassword" placeholder="Password">
+
+        <button onclick="register()">Register</button>
+
+        <div id="registerMessage" class="message"></div>
+    </div>
+
+<script>
+
+// LOGIN
+async function login() {
+
+    const username = document.getElementById("loginUsername").value;
+    const password = document.getElementById("loginPassword").value;
+
+    const response = await fetch(`/api/login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            username,
+            password
+        })
+    });
+
+    const result = await response.json();
+
+    if(result.code === "0"){
+        localStorage.setItem("userId", result.data.id);
+        localStorage.setItem("username", result.data.username);
+
+        document.getElementById("loginMessage").style.color = "green";
+        document.getElementById("loginMessage").innerHTML =
+            `Welcome ${result.data.username} (ID: ${result.data.id})`;
+
+        window.location.href = "/dashboard";
+    }else{
+        document.getElementById("loginMessage").style.color = "red";
+        document.getElementById("loginMessage").innerHTML = result.data;
+    }
+}
+
+
+// REGISTER
+async function register(){
+
+    const email = document.getElementById("regEmail").value;
+    const username = document.getElementById("regUsername").value;
+    const password = document.getElementById("regPassword").value;
+
+    const response = await fetch(`/api/register`, {
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            email,
+            username,
+            password
+        })
+    });
+
+    const result = await response.json();
+
+    if(result.code === "0"){
+        document.getElementById("registerMessage").style.color = "green";
+    }else{
+        document.getElementById("registerMessage").style.color = "red";
+    }
+
+    document.getElementById("registerMessage").innerHTML = result.data;
+}
+
+</script>
+
+</body>
+</html>
