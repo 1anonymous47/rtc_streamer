@@ -8,15 +8,72 @@ let friendslists = null;
 //    ]
 
 // });
-let pc = new RTCPeerConnection({
-  iceServers: [
-    {
-      urls: "turn:91.185.189.19:23238?transport=udp",
-      username: "testuser",
-      credential: "testpassword"
-    }
-  ]
-});
+function createPeerConnection() {
+
+    let connection = new RTCPeerConnection({
+        iceServers: [
+            {
+                urls: "turn:91.185.189.19:23238?transport=udp",
+                username: "testuser",
+                credential: "testpassword"
+            }
+        ]
+    });
+
+
+    connection.onicecandidate = (event) => {
+        if(event.candidate){
+
+            let payload = {
+                roomid: roomid,
+                icedata:event.candidate,
+                userid:userr
+            };
+
+            socket.emit("ice",payload);
+        }
+    };
+
+
+    connection.ontrack = (event)=>{
+        const remoteVideo = document.getElementById("remotevideo");
+
+        if(remoteVideo){
+            remoteVideo.srcObject = event.streams[0];
+        }
+    };
+
+
+    connection.onconnectionstatechange = ()=>{
+
+        console.log(
+            "Connection:",
+            connection.connectionState
+        );
+
+        if(connection.connectionState==="connected"){
+
+            const callcontrols =
+            document.getElementById("callcontrols");
+
+            if(callcontrols){
+                callcontrols.innerHTML =
+                `
+                <button onclick="endCall(${userr})">
+                End Call
+                </button>
+                `;
+            }
+        }
+    };
+
+
+    return connection;
+}
+
+let pc = null;
+
+
 
 let ICE_LIST = [];
 let roomid = null;
@@ -128,7 +185,7 @@ function logout()
 
 function openUserPage(user) {
 
-    if(pc.connectionState === "connected" ||pc.connectionState === "connecting")
+    if(pc && (pc.connectionState === "connected" ||pc.connectionState === "connecting"))
     {
         window.alert("YOU ARE ALREADY IN A CALL");
         return;
@@ -186,6 +243,8 @@ let socket = io(serverUrl, {
 async function createcall(userid) {
     try{
         let stream = await navigator.mediaDevices.getUserMedia({ video: true ,audio: true});
+
+        pc = createPeerConnection()
         stream.getTracks().forEach(async track => {
             await pc.addTrack(track, stream);
         });
@@ -214,6 +273,9 @@ async function joincall(userid) {
         let stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         const localVideo = document.getElementById("localvideo");
         localVideo.srcObject = stream;
+
+        pc = createPeerConnection();
+        
         stream.getTracks().forEach(async track => {
             await pc.addTrack(track, stream);
         });
@@ -277,44 +339,44 @@ socket.on("receiveice",async function receiveice(data) {
    }
 })
 
-pc.onicecandidate = (event) => {
-   if (event.candidate) {
-        let payload = {
-            "roomid":roomid,
-            "icedata":event.candidate,
-            "userid":userr
-        }
-        console.log("Sending ICE")
+// pc.onicecandidate = (event) => {
+//    if (event.candidate) {
+//         let payload = {
+//             "roomid":roomid,
+//             "icedata":event.candidate,
+//             "userid":userr
+//         }
+//         console.log("Sending ICE")
 
-        socket.emit("ice",payload)
-    }
-    else
-    {
-        console.log("WTH")
-    }
-}
+//         socket.emit("ice",payload)
+//     }
+//     else
+//     {
+//         console.log("WTH")
+//     }
+// }
 
-pc.ontrack = (event) => {
-   const remoteVideo = document.getElementById("remotevideo");
-   remoteVideo.srcObject = event.streams[0];
-}
+// pc.ontrack = (event) => {
+//    const remoteVideo = document.getElementById("remotevideo");
+//    remoteVideo.srcObject = event.streams[0];
+// }
 
 
-pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "connected") {
-        console.log("CONNECTED")
+// pc.onconnectionstatechange = () => {
+//     if (pc.connectionState === "connected") {
+//         console.log("CONNECTED")
 
-        const callcontrols = document.getElementById("callcontrols");
-        callcontrols.innerHTML = `
-            <button style="background: var(--danger)" onclick="endCall(${userr})">End Call</button>
-        `;
-    }
-    else
-    {
-        console.log("SOME OTHER STATE : ",pc.connectionState)
+//         const callcontrols = document.getElementById("callcontrols");
+//         callcontrols.innerHTML = `
+//             <button style="background: var(--danger)" onclick="endCall(${userr})">End Call</button>
+//         `;
+//     }
+//     else
+//     {
+//         console.log("SOME OTHER STATE : ",pc.connectionState)
 
-    }
-};
+//     }
+// };
 
 
 
@@ -346,15 +408,7 @@ socket.on("phonestatus",async function(data) {
         {
             pc.close();
 
-            pc = new RTCPeerConnection({
-            iceServers: [
-                {
-                urls: "turn:91.185.189.19:23238?transport=udp",
-                username: "testuser",
-                credential: "testpassword"
-                }
-            ]
-            });
+            pc = createPeerConnection();
         }
         document.getElementById(`user-card-id_${userr}`).click();
         userr = 0;
