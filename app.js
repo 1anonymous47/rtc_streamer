@@ -11,11 +11,6 @@ const app = express();
 app.use(cookieParser());
 
 
-const options = {
-    key: fs.readFileSync("mkcert/192.168.31.219+2-key.pem"),
-    cert: fs.readFileSync("mkcert/192.168.31.219+2.pem")
-};
-
 const server = http.createServer(app);
 
 app.use(express.json());
