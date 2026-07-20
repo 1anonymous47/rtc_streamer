@@ -2,6 +2,12 @@ let userid = 0;
 
 let friendslists = null;
 
+let dc = null;
+
+let usertype = 0;
+
+let lastPong = Date.now();
+
 // let pc = new RTCPeerConnection({
 //    iceServers: [
 //       { urls: "stun:stun.l.google.com:19302" }
@@ -66,6 +72,85 @@ function createPeerConnection() {
             }
         }
     };
+
+    if(usertype==1)
+    {
+        dc = connection.createDataChannel("heartbeat");
+
+        dc.onopen = () => {
+            console.log("Heartbeat channel ready");
+            setInterval(() => {
+                dc.send("ping");
+            }, 1000);
+
+            setInterval(() => {
+                const diff = Date.now() - lastPong;
+
+                if (diff > 3000) {
+                    console.log("Peer disconnected");
+                }
+            }, 1000);
+        };
+
+        dc.onmessage = (event) => {
+
+            console.log(`${usertype}`,event.data)
+
+            if (event.data === "ping") {
+                lastPong = Date.now();
+                dc.send("pong");
+            }    
+            if (event.data === "pong") {
+                lastPong = Date.now();
+            }
+
+        };
+
+
+        
+    }
+    else
+    {
+        connection.ondatachannel = (event) => {
+            dc = event.channel;
+
+            console.log("DataChannel received");
+
+            dc.onopen = () => {
+                setInterval(() => {
+                    dc.send("ping");
+                }, 1000);
+                setInterval(() => {
+                    const diff = Date.now() - lastPong;
+
+                    if (diff > 3000) {
+                        console.log("Peer disconnected");
+                    }
+                }, 1000);
+            };
+            dc.onmessage = (event) => {
+
+                console.log(`${usertype}`,event.data)
+
+                if (event.data === "ping") {
+                    lastPong = Date.now();
+                    dc.send("pong");
+                }    
+                if (event.data === "pong") {
+                    lastPong = Date.now();
+                }
+
+            };
+
+        };
+    }
+
+    
+
+
+
+
+
 
 
     return connection;
@@ -244,7 +329,9 @@ async function createcall(userid) {
     try{
         let stream = await navigator.mediaDevices.getUserMedia({ video: true ,audio: true});
 
-        pc = createPeerConnection()
+        usertype = 1;
+
+        pc = createPeerConnection(usertype);
         stream.getTracks().forEach(async track => {
             await pc.addTrack(track, stream);
         });
@@ -274,7 +361,9 @@ async function joincall(userid) {
         const localVideo = document.getElementById("localvideo");
         localVideo.srcObject = stream;
 
-        pc = createPeerConnection();
+        usertype = 2;
+
+        pc = createPeerConnection(usertype);
         
         stream.getTracks().forEach(async track => {
             await pc.addTrack(track, stream);
@@ -295,6 +384,10 @@ async function joincall(userid) {
 
 socket.on("receiveoffer", async function(data){
     console.log("Received Offer is",data["sdp"])
+    if(!pc)
+    {
+        return;
+    }
     await pc.setRemoteDescription(data["sdp"])
 
     for (const icedata of ICE_LIST) {
@@ -323,7 +416,7 @@ socket.on("receiveanswer",async function(data) {
 
 socket.on("receiveice",async function receiveice(data) {
    console.log("Received ICE")
-   if(pc.remoteDescription)
+   if(pc && pc.remoteDescription)
    {
         for (const icedata of ICE_LIST) {
             await pc.addIceCandidate(icedata)
@@ -408,9 +501,12 @@ socket.on("phonestatus",async function(data) {
         {
             pc.close();
 
-            pc = createPeerConnection();
+            pc = createPeerConnection(usertype);
         }
-        document.getElementById(`user-card-id_${userr}`).click();
+        if(userr)
+        {
+            document.getElementById(`user-card-id_${userr}`).click();
+        }
         userr = 0;
     }
     else if(data.data=="phonesuccess")
