@@ -1,4 +1,3 @@
-const { error } = require("node:console");
 const socketpackage = require("../packages/socketpackage");
 const io = socketpackage.getIO();
 const crypto = require('node:crypto');
@@ -21,6 +20,7 @@ io.on("connection", (socket) => {
     socket.on('offer', (data) => {
         const roomid = crypto.randomUUID();
         console.log("OFFER RECEIVED")
+        socket.status = "busy";
         const clientsocket = CLIENT_ROOMS[data.userid]
         try{
             console.log(data.userid)
@@ -28,14 +28,17 @@ io.on("connection", (socket) => {
             {
                 ROOMS[roomid]={
                     "userc":null,
-                    "userr":null
+                    "userr":null,
+                    "status":"null",
+                    "statusinterval":null
+
                 }
             }
             ROOMS[roomid]["userc"]=data.sdp;
 
             const clientsocket = CLIENT_ROOMS[data.userid];
 
-            if(clientsocket)
+            if(clientsocket && clientsocket.connected)
             {
                 if(clientsocket.status=="busy")
                 {
@@ -45,6 +48,7 @@ io.on("connection", (socket) => {
                         "data":"busy"
                     }
                     socket.emit("phonestatus",payloadr);
+                    socket.status=="online";
                 }
                 else if(clientsocket.status=="online")
                 {
@@ -58,10 +62,40 @@ io.on("connection", (socket) => {
                         "roomid":roomid,
                         "data":"calling"
                     }
+                    try{
+                        clientsocket.emit("phonestatus",payloadc);
+                        socket.emit("phonestatus",payloadr);
 
-                    
-                    clientsocket.emit("phonestatus",payloadc);
-                    socket.emit("phonestatus",payloadr);
+                        const statusinterval = setTimeout(() => {
+                            ROOMS[roomid]["status"]="ringing";
+
+                            if(ROOMS[roomid]["status"]=="ringing")
+                            {
+                                let payload = {
+                                    "roomid":roomid,
+                                    "userid":data.userid,
+                                    "data":"phonenotattended"
+                                }
+                                socket.emit("phonestatus",payload);
+                                socket.status = "online";
+                                console.log("USER DO NOTHING");
+                            }
+                            else{
+                                console.log("CURRENT STATUS",ROOMS[roomid]["status"])
+                            }
+                        }, 12000);
+                        ROOMS[roomid]["statusinterval"] = statusinterval;
+                    }catch(err)
+                    {
+                        let payloaderr = {
+                            "roomid":roomid,
+                            "userid":userid,
+                            "userid":"offline"
+                        }
+                        console.log(err);
+                        socket.status=="online";
+                        socket.emit("phonestatus",payloaderr);
+                    }
                 }
                 else
                 {
@@ -76,6 +110,7 @@ io.on("connection", (socket) => {
                     "userid":data.userid,
                     "data":"offline"
                 }
+                socket.status=="online";
                 socket.emit("phonestatus",payloadr);
             }
         }catch(err)
@@ -88,6 +123,8 @@ io.on("connection", (socket) => {
         let payload = {
             sdp:ROOMS[data.roomid]["userc"]
         }
+        ROOMS[data.roomid]["status"]=="attended";
+        clearTimeout(ROOMS[data.roomid]["statusinterval"])
         socket.emit("receiveoffer",payload)
     })
 
@@ -107,12 +144,12 @@ io.on("connection", (socket) => {
     })
 
     socket.on("ice", (data) =>{
-        console.log("ICE RECEIVED")
+        // console.log("ICE RECEIVED")
         let clientsocket = CLIENT_ROOMS[data.userid];
         if(clientsocket)
         {
             clientsocket.emit("receiveice",data.icedata)
-            console.log("ICE SUCCESS");
+            // console.log("ICE SUCCESS");
 
         }
         else{
@@ -133,12 +170,15 @@ io.on("connection", (socket) => {
                     try{
                         clientsocket.emit("phonestatus",data)
                         socket.emit("phonestatus",data)
+
+                        socket.status = "online";
+                        clientsocket.status = "online";
                     }
                     catch(err)
                     {
                         console.log(err);
                         let payload = {
-                            "data":"error"
+                            "data":err
                         }
                         clientsocket.emit("phonestatus",payload)
                     }
@@ -150,8 +190,51 @@ io.on("connection", (socket) => {
                 }
             }
         }
-    })
+        else if(data.data=="phonedeclined")
+        {
+            console.log("USER HAS DECLINED YOUR CALL");
+            if(ROOMS[data.roomid])
+            {
+                let clientsocket = CLIENT_ROOMS[data.userid];
 
+                if(clientsocket)
+                {
+                    let payload = {
+                        "roomid":data.roomid,
+                        "userid":socket.userid,
+                        "data":"phonedeclined"
+                    }
+                    try{
+                        clientsocket.emit("phonestatus",payload)
+                        clientsocket.status = "online";
+                        clearTimeout(ROOMS[data.roomid]["statusinterval"])
+                    }
+                    catch(err)
+                    {
+                        console.log(err);
+                        let payload = {
+                            "data":err
+                        }
+                        clientsocket.emit("phonestatus",payload)
+
+                        ROOMS[data.roomid]["status"]=="answered";
+
+                        clearTimeout(ROOMS[data.roomid]["statusinterval"]);
+                    }
+                }
+                else{
+                    console.log("USER NOT FOUND")
+                    socket.emit("phonestatus",{
+                        "data":"error"
+                    })
+                }
+            }
+            else{
+                console.log("ROOM NOT FOUND")
+            }
+
+        }
+    })
 
 });
 

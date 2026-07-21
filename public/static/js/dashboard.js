@@ -1,12 +1,36 @@
 let userid = 0;
-
 let friendslists = null;
-
 let dc = null;
-
 let usertype = 0;
-
 let lastPong = Date.now();
+
+
+let callerinterval = null;
+let callersender = null;
+let receierinterval = null;
+
+
+let reconnetiontimeout = null;
+let reconnectionstatus = false;
+
+
+let callpopuptinterval = null;
+
+let popuptime = 12000;
+
+
+function reconectingfuntion()
+{
+    if(reconnectionstatus==false)
+    {
+        createcall(userr);
+        reconnectionstatus = true;
+    }
+    else
+    {
+        console.log("Already called");
+    }
+}
 
 // let pc = new RTCPeerConnection({
 //    iceServers: [
@@ -62,6 +86,10 @@ function createPeerConnection() {
             const callcontrols =
             document.getElementById("callcontrols");
 
+            if(reconnectionstatus==true)
+            {
+                reconnectionstatus = false;
+            }
             if(callcontrols){
                 callcontrols.innerHTML =
                 `
@@ -72,87 +100,73 @@ function createPeerConnection() {
             }
         }
     };
-
     if(usertype==1)
     {
         dc = connection.createDataChannel("heartbeat");
-
         dc.onopen = () => {
             console.log("Heartbeat channel ready");
-            setInterval(() => {
-                dc.send("ping");
+            callersender = setInterval(() => {
+                if (dc.readyState === "open")
+                {
+                    dc.send("ping");
+                }
             }, 1000);
-
-            setInterval(() => {
+            callerinterval = setInterval(() => {
                 const diff = Date.now() - lastPong;
-
                 if (diff > 3000) {
-                    console.log("Peer disconnected");
+                    console.log("Peer disconnected caller side");
+                    reconnetiontimeout = reconnetiontimeout + 1;
+                    if(reconnetiontimeout%4==0)
+                    {
+                        // reconectingfuntion();
+                        window.alert("Call Closed");
+                        endCall(userr);
+                    }
+                    // if(reconnetiontimeout==40)
+                    // {
+                    //     console.log("UNABLE TO RECONNECT , DISCONNECTED THE CALL")
+                    //     endCall(userr);
+                    // }
                 }
             }, 1000);
         };
-
         dc.onmessage = (event) => {
-
             console.log(`${usertype}`,event.data)
-
-            if (event.data === "ping") {
-                lastPong = Date.now();
-                dc.send("pong");
-            }    
             if (event.data === "pong") {
                 lastPong = Date.now();
             }
-
         };
-
-
-        
     }
     else
     {
         connection.ondatachannel = (event) => {
             dc = event.channel;
-
             console.log("DataChannel received");
-
             dc.onopen = () => {
-                setInterval(() => {
-                    dc.send("ping");
-                }, 1000);
-                setInterval(() => {
+                receierinterval = setInterval(() => {
                     const diff = Date.now() - lastPong;
-
                     if (diff > 3000) {
-                        console.log("Peer disconnected");
+                        console.log("Peer disconnected receiver side");
+                        reconnetiontimeout = reconnetiontimeout + 1;
+                        if(reconnetiontimeout%4==0)
+                        {
+                            // reconectingfuntion();
+                            window.alert("Call Closed");
+                            endCall(userr);
+                        }
                     }
                 }, 1000);
             };
             dc.onmessage = (event) => {
-
                 console.log(`${usertype}`,event.data)
-
                 if (event.data === "ping") {
                     lastPong = Date.now();
                     dc.send("pong");
-                }    
-                if (event.data === "pong") {
-                    lastPong = Date.now();
+                    
                 }
-
             };
-
-        };
+        }
     }
-
-    
-
-
-
-
-
-
-
     return connection;
 }
 
@@ -299,6 +313,8 @@ function endCall(userid)
         "data":"endcall"
     }
     socket.emit("phonestatus", payload);
+
+    
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
@@ -325,12 +341,10 @@ let socket = io(serverUrl, {
     }
 });
 
-async function createcall(userid) {
+async function createcall (userid) {
     try{
         let stream = await navigator.mediaDevices.getUserMedia({ video: true ,audio: true});
-
         usertype = 1;
-
         pc = createPeerConnection(usertype);
         stream.getTracks().forEach(async track => {
             await pc.addTrack(track, stream);
@@ -486,6 +500,12 @@ socket.on("phonestatus",async function(data) {
 
         userr = data.userid;
 
+        callpopuptinterval = setTimeout(() => {
+            window.alert("CALL CUTTED");
+            document.getElementById("popup").style.display = "none";
+
+        }, popuptime);
+
         openPopup();
 
     }
@@ -507,21 +527,53 @@ socket.on("phonestatus",async function(data) {
         {
             document.getElementById(`user-card-id_${userr}`).click();
         }
+        clearInterval(callerinterval);
+        clearInterval(receierinterval);
+        clearInterval(callersender);
         userr = 0;
     }
-    else if(data.data=="phonesuccess")
+    else if(data.data=="phonedeclined")
     {
-        console.log("HANDSHAKE SUCCESS");
+        // console.log(data);
+
+        const result = friendslists.find(item => item.id === Number(data.userid));
+
+        // console.log(friendslists)
+
+        window.alert(`${result.username} declined you call`);
+
+        if(reconnectionstatus==true)
+        {
+            endCall(userr);
+            reconnectionstatus=false;
+        }
     }
     else if(data.data=="offline")
     {
         const result = friendslists.find(item => item.id === data.userid);
+        if(reconnectionstatus==true)
+        {
+            endCall(userr);
+            reconnectionstatus=false;
+
+        }
+        
+        clearInterval(callerinterval);
+        clearInterval(receierinterval);
+        clearInterval(callersender);
+
         window.alert(`${result.username} IS OFFLINE`)
     }
     else if(data.data == "busy")
     {
         const result = friendslists.find(item => item.id === data.userid);
         window.alert(`${result.username} IS BUSY`)
+    }
+    else if(data.data == "phonenotattended")
+    {
+        const result = friendslists.find(item => item.id === data.userid);
+
+        window.alert(`${result.username} IS NOT ATTENDED YOUR CALL`)
     }
     else
     {
@@ -583,8 +635,21 @@ function sendResponse(answer) {
   {
     joincall(userr);
   }
-  else{
+  else if(answer=="No"){
     console.log("NO ATTENDED THE CALL")
+    let payload = {
+        "roomid":roomid,
+        "userid":userr,
+        "data":"phonedeclined"
+    }
+    try{
+        socket.emit("phonestatus",payload)
+    }
+    catch(err)
+    {
+        console.log("ERROR SENDING PHONE STATUS")
+    }
   }
   document.getElementById("popup").style.display = "none";
+  clearTimeout(callpopuptinterval);
 }
