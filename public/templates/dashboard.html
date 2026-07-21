@@ -6,12 +6,13 @@
     <title>Dashboard</title>
     <link rel="stylesheet" href="css/dashboard.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <div class="topbar">
         <div class="logo-area">
             <span class="pulse-icon"></span>
-            <h2>Dashboard</h2>
+            <p id="userdetails1">Loading user...</p>
         </div>
         <div class="nav-buttons">
             <button class="nav-btn" onclick="showPage('dashboard')">Home</button>
@@ -28,7 +29,7 @@
                 <h1>Welcome Back!</h1>
                 <div class="user-badge">
                     <span class="status-dot"></span>
-                    <p id="userdetails">Loading user...</p>
+                    <p id="userdetails2">Loading user...</p>
                 </div>
                 <p class="subtext">Select a tab from the menu to start messaging or searching for friends.</p>
             </div>
@@ -85,6 +86,18 @@
             </div>
         </div>
     </div>
+
+    <div id="cusalert" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <p id="alerttext">........</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-accept" onclick="closealtermodel('Yes')">Ok</button>
+            </div>
+        </div>
+    </div>
+
 
     <script src="js/dashboard.js"></script>
 </body>

@@ -18,6 +18,11 @@ let callpopuptinterval = null;
 
 let popuptime = 12000;
 
+let pc = null;
+let ICE_LIST = [];
+let roomid = null;
+let userr = 0;
+
 
 function reconectingfuntion()
 {
@@ -119,7 +124,8 @@ function createPeerConnection() {
                     if(reconnetiontimeout%4==0)
                     {
                         // reconectingfuntion();
-                        window.alert("Call Closed");
+
+                        openalertmodel(`Call closed successfully`)
                         endCall(userr);
                     }
                     // if(reconnetiontimeout==40)
@@ -151,7 +157,7 @@ function createPeerConnection() {
                         if(reconnetiontimeout%4==0)
                         {
                             // reconectingfuntion();
-                            window.alert("Call Closed");
+                            openalertmodel(`Call closed successfully`)
                             endCall(userr);
                         }
                     }
@@ -170,15 +176,19 @@ function createPeerConnection() {
     return connection;
 }
 
-let pc = null;
+function openalertmodel(text)
+{
+    document.getElementById("alerttext").innerHTML = text;
 
+    document.getElementById("cusalert").style.display = "flex";
+}
 
+function closealtermodel()
+{
+    document.getElementById("cusalert").style.display = "none";
+    document.getElementById("alerttext").innerHTML = ".......";
+}
 
-let ICE_LIST = [];
-let roomid = null;
-
-
-let userr = 0;
 
 async function sendFriendRequest(receiverid) {
     let senderid = localStorage.getItem("userId");
@@ -193,11 +203,13 @@ async function sendFriendRequest(receiverid) {
         })
     })
 
-    result = await result.json()
+    result = await result.json();
+    openalertmodel(`${result.data}`)
 
-    window.alert(result.data)
-    
-    
+    document.getElementById("searchuser").value = "";
+    document.getElementById("searchuserlist").innerHTML = "";
+
+
 }
 
 async function getSearchuser(searchParam) {
@@ -213,7 +225,7 @@ async function getSearchuser(searchParam) {
         const userDiv = document.createElement("div");
 
         userDiv.innerHTML = `
-            <span>${user.username})</span>
+            <span>${user.username}</span>
             <button onclick="sendFriendRequest(${user.id})">Add to firend</button>
         `;
 
@@ -245,7 +257,15 @@ async function acceptRequest(userid,type) {
         body: JSON.stringify(payload)
     })
 
-    console.log(response.json())
+    let result = await response.json();
+
+    console.log(result);
+
+    openalertmodel(`${result.data}`)
+
+    friendrequestlist();
+
+
 }
 
 async function friendrequestlist()
@@ -268,7 +288,7 @@ async function friendrequestlist()
         userDiv.innerHTML = `
             <span>${user.username}</span>
             <button onclick="acceptRequest(${user.id},1)">Accept</button>
-            <button onclick="acceptRequest(${user.id},2)">Block</button>
+            <!-- <button onclick="acceptRequest(${user.id},2)">Block</button> -->
         `;
 
         friendrequestlistdiv.appendChild(userDiv);
@@ -286,7 +306,8 @@ function openUserPage(user) {
 
     if(pc && (pc.connectionState === "connected" ||pc.connectionState === "connecting"))
     {
-        window.alert("YOU ARE ALREADY IN A CALL");
+
+        openalertmodel("You are already in a call")
         return;
     }
     document.getElementById("chatArea").innerHTML = `
@@ -328,9 +349,12 @@ document.addEventListener("DOMContentLoaded",()=>{
             getSearchuser(event.target.value);
         }
     })
-    document.getElementById("userdetails").innerHTML = localStorage.getItem("username")
+    document.getElementById("userdetails1").innerHTML = localStorage.getItem("username")
+    document.getElementById("userdetails2").innerHTML = localStorage.getItem("username")
     friendrequestlist();
     friendslist();
+
+    // openalertmodel("Page loaded successfully");
 })
 
 const serverUrl = window.location.origin;
@@ -501,7 +525,7 @@ socket.on("phonestatus",async function(data) {
         userr = data.userid;
 
         callpopuptinterval = setTimeout(() => {
-            window.alert("CALL CUTTED");
+            openalertmodel("Call Ended");
             document.getElementById("popup").style.display = "none";
 
         }, popuptime);
@@ -540,7 +564,8 @@ socket.on("phonestatus",async function(data) {
 
         // console.log(friendslists)
 
-        window.alert(`${result.username} declined you call`);
+        openalertmodel(`${result.username} declined you call`)
+
 
         if(reconnectionstatus==true)
         {
@@ -562,25 +587,31 @@ socket.on("phonestatus",async function(data) {
         clearInterval(receierinterval);
         clearInterval(callersender);
 
-        window.alert(`${result.username} IS OFFLINE`)
+
+        openalertmodel(`${result.username} is offline`)
+
     }
     else if(data.data == "busy")
     {
         const result = friendslists.find(item => item.id === data.userid);
-        window.alert(`${result.username} IS BUSY`)
+
+
+        openalertmodel(`${result.username} is busy`)
     }
     else if(data.data == "phonenotattended")
     {
         const result = friendslists.find(item => item.id === data.userid);
 
-        window.alert(`${result.username} IS NOT ATTENDED YOUR CALL`)
+
+
+        openalertmodel(`${result.username} doesn't pick your call`)
     }
     else
     {
         console.log("STATE : ",data);
     }
 })
-async function friendslist(params) {
+async function friendslist() {
     
     let result = await fetch(`api/friendslist/${localStorage.getItem("userId")}`)
 
@@ -621,6 +652,22 @@ function showPage(pageName) {
     pages.forEach(page => {
         page.classList.remove("active");
     });
+
+    if(pageName=="requests"){
+        friendrequestlist();
+    }
+    else if(pageName=="videochat"){
+        friendslist();
+    }
+    else if(pageName=="search"){
+
+        document.getElementById("searchuser").value = "";
+        document.getElementById("searchuserlist").innerHTML = "";
+
+    }
+    else{
+        console.log("CLICKED SOME OTHER PAGE : ",pageName)
+    }
 
     document.getElementById(pageName)
             .classList.add("active");
