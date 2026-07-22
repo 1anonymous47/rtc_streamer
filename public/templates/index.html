@@ -3,352 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video App - Auth</title>
+    <title>Login & Register</title>
+
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        body{
+            font-family: Arial, sans-serif;
+            background:#f4f4f4;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            gap:30px;
+            height:100vh;
         }
 
-        body {
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: radial-gradient(circle at top left, #1a1c29, #0e1017);
-            color: #ffffff;
-            overflow: hidden;
-            position: relative;
+        .card{
+            width:300px;
+            background:white;
+            padding:20px;
+            border-radius:10px;
+            box-shadow:0 0 10px rgba(0,0,0,0.2);
         }
 
-        /* Ambient background glow elements for video app vibe */
-        body::before, body::after {
-            content: '';
-            position: absolute;
-            width: 320px;
-            height: 320px;
-            border-radius: 50%;
-            filter: blur(100px);
-            z-index: 0;
-        }
-        body::before {
-            background: #6366f1;
-            top: 10%;
-            left: 15%;
-        }
-        body::after {
-            background: #a855f7;
-            bottom: 10%;
-            right: 15%;
+        h2{
+            text-align:center;
         }
 
-        .auth-container {
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            max-width: 420px;
-            padding: 2.5rem;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        input{
+            width:100%;
+            padding:10px;
+            margin:8px 0;
+            box-sizing:border-box;
         }
 
-        .brand-header {
-            text-align: center;
-            margin-bottom: 2rem;
+        button{
+            width:100%;
+            padding:10px;
+            background:#007bff;
+            color:white;
+            border:none;
+            cursor:pointer;
         }
 
-        .brand-header .logo-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #6366f1, #a855f7);
-            border-radius: 12px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 0.75rem;
-            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
+        button:hover{
+            background:#0056b3;
         }
 
-        .brand-header h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
+        .message{
+            margin-top:10px;
+            text-align:center;
+            font-weight:bold;
         }
-
-        .brand-header p {
-            font-size: 0.875rem;
-            color: #9ca3af;
-            margin-top: 0.25rem;
-        }
-
-        /* Nav Tab Switcher */
-        .tab-group {
-            display: flex;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 4px;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            background: transparent;
-            color: #9ca3af;
-            font-weight: 600;
-            font-size: 0.9rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .tab-btn.active {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Form Controls */
-        .form-view {
-            display: none;
-            flex-direction: column;
-            gap: 1.1rem;
-        }
-
-        .form-view.active {
-            display: flex;
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-        }
-
-        .input-group label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #d1d5db;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px 16px;
-            background: rgba(0, 0, 0, 0.25);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: #ffffff;
-            font-size: 0.95rem;
-            outline: none;
-            transition: border-color 0.2s ease;
-        }
-
-        .input-group input:focus {
-            border-color: #6366f1;
-        }
-
-        .input-group input::placeholder {
-            color: #6b7280;
-        }
-
-        .submit-btn {
-            width: 100%;
-            padding: 12px;
-            margin-top: 0.5rem;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: #ffffff;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: transform 0.1s ease, box-shadow 0.2s ease;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
-
-        .submit-btn:hover {
-            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
-        }
-
-        .submit-btn:active {
-            transform: scale(0.98);
-        }
-
-        .message {
-            font-size: 0.85rem;
-            text-align: center;
-            min-height: 20px;
-        }
-
-        .message.success { color: #34d399; }
-        .message.error { color: #f87171; }
     </style>
 </head>
 <body>
 
-    <div class="auth-container">
-        <div class="brand-header">
-            <div class="logo-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                </svg>
-            </div>
-            <p>Real-time video conversations</p>
-        </div>
+    <!-- Login -->
+    <div class="card">
+        <h2>Login</h2>
 
-        <!-- Navigation Tabs -->
-        <div class="tab-group">
-            <button class="tab-btn active" id="loginTabBtn" onclick="switchTab('login')">Sign In</button>
-            <button class="tab-btn" id="registerTabBtn" onclick="switchTab('register')">Register</button>
-        </div>
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
 
-        <!-- LOGIN FORM -->
-        <div id="loginView" class="form-view active">
-            <div class="input-group">
-                <label for="loginUsername">Username</label>
-                <input type="text" id="loginUsername" placeholder="Enter your username">
-            </div>
+        <button onclick="login()">Login</button>
 
-            <div class="input-group">
-                <label for="loginPassword">Password</label>
-                <input type="password" id="loginPassword" placeholder="••••••••">
-            </div>
+        <div id="loginMessage" class="message"></div>
+    </div>
 
-            <button class="submit-btn" onclick="login()">Sign In</button>
+    <!-- Register -->
+    <div class="card">
+        <h2>Register</h2>
 
-            <div id="loginMessage" class="message"></div>
-        </div>
+        <input type="email" id="regEmail" placeholder="Email">
+        <input type="text" id="regUsername" placeholder="Username">
+        <input type="password" id="regPassword" placeholder="Password">
 
-        <!-- REGISTER FORM -->
-        <div id="registerView" class="form-view">
-            <div class="input-group">
-                <label for="regEmail">Email</label>
-                <input type="email" id="regEmail" placeholder="name@example.com">
-            </div>
+        <button onclick="register()">Register</button>
 
-            <div class="input-group">
-                <label for="regUsername">Username</label>
-                <input type="text" id="regUsername" placeholder="Choose a username">
-            </div>
-
-            <div class="input-group">
-                <label for="regPassword">Password</label>
-                <input type="password" id="regPassword" placeholder="••••••••">
-            </div>
-
-            <button class="submit-btn" onclick="register()">Create Account</button>
-
-            <div id="registerMessage" class="message"></div>
-        </div>
+        <div id="registerMessage" class="message"></div>
     </div>
 
 <script>
-    // Tab Switching Logic
-    function switchTab(view) {
-        const loginView = document.getElementById("loginView");
-        const registerView = document.getElementById("registerView");
-        const loginTabBtn = document.getElementById("loginTabBtn");
-        const registerTabBtn = document.getElementById("registerTabBtn");
 
-        if (view === "login") {
-            loginView.classList.add("active");
-            registerView.classList.remove("active");
-            loginTabBtn.classList.add("active");
-            registerTabBtn.classList.remove("active");
-        } else {
-            registerView.classList.add("active");
-            loginView.classList.remove("active");
-            registerTabBtn.classList.add("active");
-            loginTabBtn.classList.remove("active");
-        }
+// LOGIN
+async function login() {
+
+    const username = document.getElementById("loginUsername").value;
+    const password = document.getElementById("loginPassword").value;
+
+    const response = await fetch(`/api/login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            username,
+            password
+        })
+    });
+
+    const result = await response.json();
+
+    if(result.code === "0"){
+        localStorage.setItem("userId", result.data.id);
+        localStorage.setItem("username", result.data.username);
+
+        document.getElementById("loginMessage").style.color = "green";
+        document.getElementById("loginMessage").innerHTML =
+            `Welcome ${result.data.username} (ID: ${result.data.id})`;
+
+        window.location.href = "/dashboard";
+    }else{
+        document.getElementById("loginMessage").style.color = "red";
+        document.getElementById("loginMessage").innerHTML = result.data;
+    }
+}
+
+
+// REGISTER
+async function register(){
+
+    const email = document.getElementById("regEmail").value;
+    const username = document.getElementById("regUsername").value;
+    const password = document.getElementById("regPassword").value;
+
+    const response = await fetch(`/api/register`, {
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            email,
+            username,
+            password
+        })
+    });
+
+    const result = await response.json();
+
+    if(result.code === "0"){
+        document.getElementById("registerMessage").style.color = "green";
+    }else{
+        document.getElementById("registerMessage").style.color = "red";
     }
 
-    // LOGIN
-    async function login() {
-        const username = document.getElementById("loginUsername").value;
-        const password = document.getElementById("loginPassword").value;
-        const msgBox = document.getElementById("loginMessage");
+    document.getElementById("registerMessage").innerHTML = result.data;
+}
 
-        msgBox.className = "message";
-        msgBox.innerHTML = "";
-
-        try {
-            const response = await fetch(`/api/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password })
-            });
-
-            const result = await response.json();
-
-            if (result.code === "0") {
-                localStorage.setItem("userId", result.data.id);
-                localStorage.setItem("username", result.data.username);
-
-                msgBox.classList.add("success");
-                msgBox.innerHTML = `Welcome ${result.data.username}! Redirecting...`;
-
-                setTimeout(() => {
-                    window.location.href = "/dashboard";
-                }, 800);
-            } else {
-                msgBox.classList.add("error");
-                msgBox.innerHTML = result.data || "Invalid credentials";
-            }
-        } catch (err) {
-            msgBox.classList.add("error");
-            msgBox.innerHTML = "Network connection error";
-        }
-    }
-
-    // REGISTER
-    async function register() {
-        const email = document.getElementById("regEmail").value;
-        const username = document.getElementById("regUsername").value;
-        const password = document.getElementById("regPassword").value;
-        const regMsgBox = document.getElementById("registerMessage");
-        const loginMsgBox = document.getElementById("loginMessage");
-
-        regMsgBox.className = "message";
-        regMsgBox.innerHTML = "";
-
-        try {
-            const response = await fetch(`/api/register`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, username, password })
-            });
-
-            const result = await response.json();
-
-            if (result.code === "0") {
-                // Pre-fill username on login tab for fast entry
-                document.getElementById("loginUsername").value = username;
-
-                // Switch back to Login View on success
-                switchTab("login");
-
-                loginMsgBox.className = "message success";
-                loginMsgBox.innerHTML = "Account created successfully! Please sign in.";
-            } else {
-                regMsgBox.classList.add("error");
-                regMsgBox.innerHTML = result.data || "Registration failed";
-            }
-        } catch (err) {
-            regMsgBox.classList.add("error");
-            regMsgBox.innerHTML = "Network connection error";
-        }
-    }
 </script>
 
 </body>
