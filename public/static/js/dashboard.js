@@ -190,15 +190,16 @@ function createPeerConnection() {
 
 function openalertmodel(text)
 {
-    document.getElementById("alerttext").innerHTML = text;
+    // document.getElementById("alerttext").innerHTML = text;
 
-    document.getElementById("cusalert").style.display = "flex";
+    // document.getElementById("cusalert").style.display = "flex";
+    showToast(text, "info");
 }
 
 function closealtermodel()
 {
-    document.getElementById("cusalert").style.display = "none";
-    document.getElementById("alerttext").innerHTML = ".......";
+    // document.getElementById("cusalert").style.display = "none";
+    // document.getElementById("alerttext").innerHTML = ".......";
 }
 
 
@@ -787,76 +788,43 @@ socket.on("messagestatus",(data)=>{
     // let div = document.getElementById("")
 })
 
-socket.on("receiveprivatemessage",(data)=>{
+socket.on("receiveprivatemessage", (data) => {
+    let messagediv = document.getElementById("messagelist");
 
-
-    let messagediv = document.getElementById("messagelist")
-
-    if(!messagediv)
-    {
+    if (!messagediv || data.senderid != chatuserr) {
         const result = friendslists.find(item => item.id === Number(data.senderid));
-
-        console.log("NO MESSAGE DIV FOUND");
-        window.alert(`RECEIVED MESSAGE FROM ${result.username}`)
-        return;
-    }
-    if(data.senderid!=chatuserr)
-    {
-        const result = friendslists.find(item => item.id === Number(data.senderid));
-
-        console.log("ITS NOT THE USER")
-        window.alert(`RECEIVED MESSAGE FROM ${result.username}`)
-
-        return;
+        const username = result ? result.username : "a user";
+        showToast(`💬 Message from ${username}`, "info");
+        if (!messagediv) return;
     }
 
     let content = messagediv.innerHTML;
-
     let tempdata = data.data;
 
-
-    if(tempdata.user_id==localuserid)
-    {
-        content = content +`
+    if (tempdata.user_id == localuserid) {
+        content += `
         <div class="message send">
-            <div class="message-text" id="msgid_${data.lastmsgid}">
-                ${tempdata.message}
-            </div>
-            <div class="message-time">
-                ${formatLocalTime()}
-                
-            </div>
+            <div class="message-text" id="msgid_${data.lastmsgid}">${tempdata.message}</div>
+            <div class="message-time">${formatLocalTime()}</div>
         </div>`;
-    }else{
-        content = content + `
+    } else {
+        content += `
         <div class="message received" id="msgid_${data.lastmsgid}">
-            <div class="message-text">
-                ${tempdata.message}
-            </div>
-            <div class="message-time">
-                ${formatLocalTime()}
-            </div>
+            <div class="message-text">${tempdata.message}</div>
+            <div class="message-time">${formatLocalTime()}</div>
         </div>`;
     }
     
     messagediv.innerHTML = content;
-
     const list = document.getElementById("messagelist");
     list.scrollTop = list.scrollHeight;
 
-
-    console.log("HERE IT COMES",data);
-
-    socket.emit("messagestatus",{
-        "lastmsgid":data.lastmsgid,
-        "senderid":data.senderid,
-        "status":"seen"
-    })
-
-
-
-
-})
+    socket.emit("messagestatus", {
+        "lastmsgid": data.lastmsgid,
+        "senderid": data.senderid,
+        "status": "seen"
+    });
+});
 
 let messageid = 0;
 
@@ -1120,7 +1088,30 @@ function showPage(pageName) {
 }
 
 function openPopup() {
-  document.getElementById("popup").style.display = "flex";
+    const callerName = document.getElementById("callername").innerText;
+
+    Swal.fire({
+        title: 'Incoming Call',
+        text: callerName,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#ef4444',
+        confirmButtonText: 'Accept',
+        cancelButtonText: 'Decline',
+        allowOutsideClick: false,
+        background: '#1e293b',
+        color: '#f8fafc',
+        customClass: {
+            popup: 'swal-custom-popup'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            sendResponse('Yes');
+        } else {
+            sendResponse('No');
+        }
+    });
 }
 function sendResponse(answer) {
   console.log(answer); 
@@ -1145,4 +1136,30 @@ function sendResponse(answer) {
   }
   document.getElementById("popup").style.display = "none";
   clearTimeout(callpopuptinterval);
+}
+
+
+function showToast(text, type = "info") {
+    let bgColors = {
+        info: "#6366f1",
+        success: "#10b981",
+        error: "#ef4444",
+        warning: "#f59e0b"
+    };
+
+    Toastify({
+        text: text,
+        duration: 3500,
+        gravity: "top", // 'top' or 'bottom'
+        position: "right", // 'left', 'center' or 'right'
+        stopOnFocus: true, 
+        style: {
+            background: bgColors[type] || bgColors.info,
+            borderRadius: "10px",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
+            fontSize: "14px",
+            fontWeight: "500",
+            padding: "12px 20px"
+        }
+    }).showToast();
 }

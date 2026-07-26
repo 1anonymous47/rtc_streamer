@@ -5,8 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <link rel="stylesheet" href="css/dashboard.css">
+    
+    <!-- Toastify CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Toastify JS -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </head>
 <body>
     <div class="topbar">
@@ -51,9 +57,7 @@
                         <h2>Blocked</h2>
                     </div>
                 </div>
-                <div id="connectionpage" class="chatArea">
-
-                </div>
+                <div id="connectionpage" class="chatArea"></div>
             </div>
         </div>
 
@@ -61,8 +65,7 @@
             <div class="video-layout">
                 <div class="sidebar-users">
                     <h3>Online Friends</h3>
-                    <div id="userslistvideo">
-                    </div>
+                    <div id="userslistvideo"></div>
                 </div>
                 <div id="chatArea" class="chatArea">
                     <div class="empty-chat-state">
@@ -76,46 +79,19 @@
             <div class="video-layout">
                 <div class="sidebar-users">
                     <h3>Online Friends</h3>
-                    <div id="userslisttext">
-                    </div>
+                    <div id="userslisttext"></div>
                 </div>
                 <div id="chatAreatext" class="chatAreatext">
                     <div class="empty-chat-state">
-                        <p>Select a friend from the sidebar to start a call</p>
+                        <p>Select a friend from the sidebar to start a message</p>
                     </div>
                 </div>
             </div>
         </div>
-
-        
     </div>
 
-    <div id="popup" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="call-animation">
-                    <span class="ring-pulse"></span>
-                </div>
-                <h3 id="callername">Inbound Call...</h3>
-                <p>Do you want to accept this video call?</p>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-accept" onclick="sendResponse('Yes')">Accept</button>
-                <button class="btn btn-decline" onclick="sendResponse('No')">Decline</button>
-            </div>
-        </div>
-    </div>
+    <p id="callername" style="display:none;"></p>
 
-    <div id="cusalert" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <p id="alerttext">........</p>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-accept" onclick="closealtermodel('Yes')">Ok</button>
-            </div>
-        </div>
-    </div>
     <script src="js/dashboard.js"></script>
 </body>
 </html>
