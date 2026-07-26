@@ -16,9 +16,9 @@
         </div>
         <div class="nav-buttons">
             <button class="nav-btn" onclick="showPage('dashboard')">Home</button>
-            <button class="nav-btn" onclick="showPage('requests')">Requests</button>
-            <button class="nav-btn" onclick="showPage('search')">Search</button>
+            <button class="nav-btn" onclick="showPage('friends')">Requests</button>
             <button class="nav-btn" onclick="showPage('videochat')">Video Chat</button>
+            <button class="nav-btn" onclick="showPage('textchat')">Text Chat</button>
             <button class="nav-btn logout-btn" onclick="logout()">Log Out</button>
         </div>
     </div>
@@ -35,40 +35,59 @@
             </div>
         </div>
 
-        <div id="requests" class="page">
-            <div class="card-wrapper">
-                <h1>Received Requests</h1>
-                <div id="friendrequestlist" class="list-container">
+        <div id="friends" class="page">
+            <div class="video-layout">
+                <div class="sidebar-users">
+                    <div class="user-card" id="listfriends" onclick="openconnectionpage(`friendslistpage`)">
+                        <h2>Friends</h2>
                     </div>
-            </div>
-        </div>
-
-        <div id="search" class="page">
-            <div class="card-wrapper">
-                <h1>Search Friends</h1>
-                <div class="search-box">
-                    <label for="searchuser">Search Username</label>
-                    <input id="searchuser" type="text" placeholder="Type a username to search...">
+                    <div class="user-card" id="searchFriends" onclick="openconnectionpage(`searchpage`)">
+                        <h2>Find Friends</h2>
+                    </div>
+                    <div class="user-card" id="receivedRequest" onclick="openconnectionpage(`requestspage`)">
+                        <h2>Requests</h2>
+                    </div>
+                    <div class="user-card" id="blockedFriends" onclick="openconnectionpage(`blockedfriends`)">
+                        <h2>Blocked</h2>
+                    </div>
                 </div>
-                <div id="searchuserlist" class="list-container">
-                    </div>
+                <div id="connectionpage" class="chatArea">
+
+                </div>
             </div>
         </div>
 
-        <div id="videochat" class="page active">
+        <div id="videochat" class="page">
             <div class="video-layout">
                 <div class="sidebar-users">
                     <h3>Online Friends</h3>
-                    <div id="userslist">
-                        </div>
+                    <div id="userslistvideo">
+                    </div>
                 </div>
-                <div id="chatArea">
+                <div id="chatArea" class="chatArea">
                     <div class="empty-chat-state">
                         <p>Select a friend from the sidebar to start a call</p>
                     </div>
                 </div>
             </div>
         </div>
+
+        <div id="textchat" class="page active">
+            <div class="video-layout">
+                <div class="sidebar-users">
+                    <h3>Online Friends</h3>
+                    <div id="userslisttext">
+                    </div>
+                </div>
+                <div id="chatAreatext" class="chatAreatext">
+                    <div class="empty-chat-state">
+                        <p>Select a friend from the sidebar to start a call</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
     </div>
 
     <div id="popup" class="modal">

@@ -245,7 +245,7 @@ input[type="text"]:focus {
 }
 
 /* Chat Area Container */
-#chatArea {
+.chatArea {
     background: var(--bg-secondary);
     border-radius: var(--radius);
     border: 1px solid var(--bg-tertiary);
@@ -254,7 +254,6 @@ input[type="text"]:focus {
     flex-direction: column;
     position: relative;
 }
-
 .empty-chat-state {
     display: flex;
     align-items: center;
@@ -511,4 +510,138 @@ input[type="text"]:focus {
         right: 12px;
         bottom: 12px;
     }
+}
+
+
+
+
+.chatAreatext {
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    border: 1px solid var(--bg-tertiary);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.call-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.call-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--bg-tertiary);
+    flex-shrink: 0;
+}
+
+#messagelist {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    padding: 15px;
+
+    /* Hide scrollbar */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#messagelist::-webkit-scrollbar {
+    display: none;
+}
+
+.message {
+    width: fit-content;
+    max-width: 70%;
+    padding: 8px 12px;
+    border-radius: 12px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.message-text {
+    font-size: 15px;
+    word-break: break-word;
+}
+
+.message-time {
+    font-size: 11px;
+    opacity: 0.6;
+    align-self: flex-end;
+}
+
+.send {
+    margin-left: auto;
+    background: #4facfe;
+    color: white;
+}
+
+.received {
+    margin-right: auto;
+    background: #374151;
+    color: white;
+}
+
+.text-controls {
+    display: flex;
+    gap: 10px;
+
+    padding: 10px;
+    border-top: 1px solid var(--bg-tertiary);
+
+    flex-shrink: 0;
+}
+
+.text-controls input {
+    flex: 1;
+}
+
+.text-controls button {
+    width: 90px;
+    height: 40px;
+
+    border: none;
+    border-radius: 20px;
+
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    color: white;
+
+    font-size: 15px;
+    font-weight: bold;
+
+    cursor: pointer;
+
+    transition: 0.3s ease;
+}
+
+.text-controls button:hover {
+    background: linear-gradient(135deg, #00f2fe, #4facfe);
+    transform: scale(1.05);
+}
+
+.text-controls button:active {
+    transform: scale(0.95);
+}
+
+.message-text.send{
+    background-color: #020617;
+}
+
+.message-text.seen{
+    background-color: green;
+}
+
+.message-text.received{
+    background-color:blue;
 }

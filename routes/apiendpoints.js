@@ -3,7 +3,7 @@ const apirouter = express.Router();
 
 const pool = require("../packages/dbconn")
 
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
 
 
 apirouter.post('/register', async (req, res) => {
@@ -102,6 +102,23 @@ apirouter.post('/login',async (req, res) => {
     }
 });
 
+apirouter.post("/logout",async(req,res)=>{
+    try{
+        res.clearCookie("token")
+        res.json({
+            "code":"0",
+            "data":'Logout Success'
+        })
+
+    }catch(err)
+    {
+        res.json({
+            "code":"-1",
+            "data":'Logput Failed'
+        })
+    }
+})
+
 apirouter.get("/users/:userid/:filter",async (req,res)=>{
     try{
         let filter = req.params.filter;
@@ -129,23 +146,25 @@ apirouter.post("/sendrequest",async(req,res)=>{
 
         let result = null;
 
-        result = await pool.query("SELECT * FROM tbl_friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1);",[data.senderid,data.receiverid])
-        
+        result = await pool.query(`SELECT * FROM tbl_blocked_friendships WHERE ((senderid = $1 AND receiverid = $2) OR (senderid = $2 AND receiverid = $1)) AND status = 'blocked' ORDER BY id DESC LIMIT 1;`,[data.senderid,data.receiverid]);
         if(result.rows.length==0)
         {
-            result = await pool.query("INSERT INTO tbl_friend_requests(sender_id, receiver_id, status) VALUES ($1, $2, 'pending');",[data.senderid,data.receiverid])
-            res.json({
-                "code":"0",
-                "data":"Request Sended Successfully"
-            })
-        }
-        else{
-            if(result.rows[0]["status"]=="pending")
+            result = await pool.query("SELECT * FROM tbl_friend_requests WHERE ((sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)) AND status != 'blocked' ORDER BY id LIMIT 1;",[data.senderid,data.receiverid])
+            
+            if(result.rows.length==0 || result.rows[0]["status"]=="rejected"){
+                result = await pool.query("INSERT INTO tbl_friend_requests(sender_id, receiver_id, status) VALUES ($1, $2, 'pending');",[data.senderid,data.receiverid])
+                res.json({
+                    "code":"0",
+                    "data":"Request Sended Successfully"
+                })
+            }
+            else if(result.rows[0]["status"]=="pending")
             {
                 res.json({
                     "code":"0",
                     "data":"Request Already Sended"
                 })
+
             }
             else if(result.rows[0]["status"]=="accepted")
             {
@@ -154,19 +173,37 @@ apirouter.post("/sendrequest",async(req,res)=>{
                     "data":"Already Your Friends"
                 })
             }
-            else if(result.rows[0]["status"]=="blocked")
+            else{
+                res.json({
+                    "code":"-1",
+                    "data":`Invalid status ${result}`
+                })
+            }
+        }
+        else if(result.rows[0]["status"]=="blocked")
+        {
+            if(result.rows[0]["senderid"]==data.senderid)
             {
                 res.json({
                     "code":"0",
-                    "data":"Reuest has been Blocked"
+                    "data":"he blocked you"
                 })
             }
-            else{
+            else
+            {
                 res.json({
                     "code":"0",
-                    "data":"Invalid Status"
+                    "data":"You blocked he"
                 })
             }
+        }
+        else
+        {
+            console.log("SOME OTHER STATE")
+            res.json({
+                "code":"-1",
+                "data":`Invalid status ${result.rows}`
+            })
         }
     }catch(err){
         console.log(err);
@@ -184,12 +221,60 @@ apirouter.post("/acceptrequesr",async(req,res)=>{
 
         let result = null;
 
-        result = await pool.query("UPDATE tbl_friend_requests SET status = $3 WHERE sender_id = $1 AND receiver_id = $2",[data.senderid,data.receiverid,data.status])
+        if(data.status=="blocked")
+        {   
+            result = await pool.query("SELECT * FROM tbl_blocked_friendships WHERE ((senderid = $1 AND receiverid = $2) OR (senderid = $2 AND receiverid = $1)) AND status = 'blocked' ORDER BY id DESC LIMIT 1;",[data.senderid,data.receiverid])
+            console.log(result.rows)
+            
+            if(result.rows.length==0)
+            {
+                result = await pool.query("INSERT INTO tbl_blocked_friendships (senderid,receiverid,status) VALUES($1,$2,$3)",[data.senderid,data.receiverid,data.status])
+                result = await pool.query("UPDATE tbl_friendships SET status = $3 WHERE (senderid = $1 AND receiverid = $2) OR (senderid = $2 AND receiverid = $1)",[data.senderid,data.receiverid,data.status])
+                result = await pool.query("UPDATE tbl_friend_requests SET status = $3 WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",[data.senderid,data.receiverid,data.status])
+                
+            }else{
+                console.log("ALREADY BLOCKED")
+                res.json({
+                    "code":"1",
+                    "userid":data.receiverid,
+                    "data":`Already he blocked you`
+                })
+                return;
+            }
 
+        }else if(data.status=="unblocked"){
+            console.log(data.senderid,data.receiverid,data.status)
+            result = await pool.query("UPDATE tbl_blocked_friendships SET status = $3 WHERE senderid = $1 AND receiverid = $2",[data.senderid,data.receiverid,data.status])
+        }
+        else{
+            result = await pool.query("UPDATE tbl_friend_requests SET status = $3 WHERE sender_id = $1 AND receiver_id = $2",[data.senderid,data.receiverid,data.status])
+            if(data.status=="accepted")
+            {
+                result = await pool.query("INSERT INTO tbl_friendships(senderid,receiverid,status) VALUES ($1,$2,$3)",[data.senderid,data.receiverid,data.status])
+                result = await pool.query("INSERT INTO tbl_chatrooms(type) VALUES ('private') RETURNING id")
+
+                const roomId = result.rows[0].id;
+                await pool.query(
+                `
+                INSERT INTO tbl_chatrooms_members(room_id, user_id)
+                VALUES
+                ($1,$2),
+                ($1,$3)
+                `,
+                [
+                roomId,
+                data.senderid,
+                data.receiverid
+                ]
+                );
+            }
+        }
         res.json({
             "code":"0",
             "data":`Request ${data.status} Successfully`
         })
+
+
     }catch(err){
         console.log(err);
         res.json({
@@ -227,6 +312,36 @@ apirouter.get("/requestslist/:userid",async (req,res)=>{
 })
 
 
+apirouter.get("/getroomid/:userid/:ourid",async (req,res)=>{
+    try{
+        let userid = req.params.userid;
+        let ourid = req.params.ourid;
+
+        let result = null;
+
+        result = await pool.query(`SELECT cm.room_id
+            FROM tbl_chatrooms_members cm
+            JOIN tbl_chatrooms c
+            ON c.id = cm.room_id
+            WHERE c.type = 'private'
+            AND cm.user_id IN ($1, $2)
+            GROUP BY cm.room_id
+            HAVING COUNT(DISTINCT cm.user_id) = 2;`,[userid,ourid])
+
+        res.json({
+            "code":"0",
+            "data":result.rows
+        })
+    }catch(err){
+        console.log(err);
+        res.json({
+            "code":"500",
+            "data":"Internal Server Error"
+        })
+    }
+})
+
+
 apirouter.get("/friendslist/:userid",async (req,res)=>{
     try{
         let userid = req.params.userid;
@@ -238,12 +353,12 @@ apirouter.get("/friendslist/:userid",async (req,res)=>{
                 u.id,
                 u.username,
                 fr.status
-            FROM tbl_friend_requests fr
+            FROM tbl_friendships fr
             JOIN tbl_users u
             ON (
-                (fr.sender_id = $1 AND u.id = fr.receiver_id)
+                fr.senderid = $1 AND u.id = fr.receiverid
                 OR
-                (fr.receiver_id = $1 AND u.id = fr.sender_id)
+                fr.receiverid = $1 AND u.id = fr.senderid
             )
             WHERE fr.status = 'accepted';`,
             [userid])
@@ -261,14 +376,68 @@ apirouter.get("/friendslist/:userid",async (req,res)=>{
     }
 })
 
+apirouter.get("/blockedlist/:userid",async (req,res)=>{
+    try{
+        let userid = req.params.userid;
 
-// apirouter.route("/request")
-// .get((req,res)=>{
+        let result = null;
 
-// })
-// .post((res,res)=>{
+        result = await pool.query(`
+            SELECT
+                u.id,
+                u.username
+            FROM tbl_blocked_friendships fr
+            JOIN tbl_users u
+            ON (
+                fr.receiverid = $1 AND u.id = fr.senderid
+            )
+            WHERE fr.status = 'blocked';`,
+            [userid])
+        
+        res.json({
+            "code":"0",
+            "data":result.rows
+        })
+    }catch(err){
+        console.log(err);
+        res.json({
+            "code":"500",
+            "data":"Internal Server Error"
+        })
+    }
+})
 
-// })
+apirouter.get("/getmessage/:roomid/:before",async (req,res)=>{
+    try{
+        let roomid = Number(req.params.roomid);
+
+        let before = Number(req.params.before);
+
+        let result = null;
+
+        if(before==0)
+        {
+            result = await pool.query(`SELECT * FROM tbl_private_messages WHERE room_id = $1 ORDER BY id DESC LIMIt 40;`,[roomid])
+        }
+        else
+        {
+            result = await pool.query(`SELECT * FROM tbl_private_messages WHERE room_id = $1 AND id < $2 ORDER BY id DESC LIMIT 40;`,[roomid,before])
+        }
+
+        // console.log(result)
+    
+        res.json({
+            "code":"0",
+            "data":result.rows
+        })
+    }catch(err){
+        console.log(err);
+        res.json({
+            "code":"500",
+            "data":"Internal Server Error"
+        })
+    }
+})
 
 
 module.exports = apirouter;

@@ -1,9 +1,12 @@
+
+
 let userid = 0;
 let friendslists = null;
 let dc = null;
 let usertype = 0;
 let lastPong = Date.now();
 
+let localuserid = 0;
 
 let callerinterval = null;
 let callersender = null;
@@ -18,10 +21,19 @@ let callpopuptinterval = null;
 
 let popuptime = 12000;
 
+let openedpage = "";
+
 let pc = null;
 let ICE_LIST = [];
 let roomid = null;
 let userr = 0;
+
+
+let charroomid = 0;
+let chatuserr = 0;
+
+
+let onCall = false;
 
 
 function reconectingfuntion()
@@ -244,9 +256,20 @@ async function acceptRequest(userid,type) {
     {
         payload.status = "accepted";
     }
-    else
+    else if(type==2)
+    {
+        payload.status = "rejected";
+    }
+    else if(type==3)
     {
         payload.status = "blocked";
+    }
+    else if(type==4)
+    {
+        payload.status = "unblocked";
+    }
+    else{
+        console.log("INVALID STATUS")
     }
 
     let response = await fetch("api/acceptrequesr",{
@@ -263,7 +286,7 @@ async function acceptRequest(userid,type) {
 
     openalertmodel(`${result.data}`)
 
-    friendrequestlist();
+    openconnectionpage(openedpage);
 
 
 }
@@ -288,7 +311,8 @@ async function friendrequestlist()
         userDiv.innerHTML = `
             <span>${user.username}</span>
             <button onclick="acceptRequest(${user.id},1)">Accept</button>
-            <!-- <button onclick="acceptRequest(${user.id},2)">Block</button> -->
+            <button onclick="acceptRequest(${user.id},2)">Reject</button>
+            <button onclick="acceptRequest(${user.id},3)">Block</button>
         `;
 
         friendrequestlistdiv.appendChild(userDiv);
@@ -296,12 +320,137 @@ async function friendrequestlist()
     friendrequestlistdiv=friendrequestlistdiv+"<br>";
 }
 
-function logout()
+async function logout()
 {
     localStorage.removeItem("userId")
-    window.location.href="/"
+
+    let result = await fetch("api/logout",{
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        }
+    })
+    result = await result.json()
+    if(result.code==0)
+    {
+        openalertmodel("LOGOUT SUCCESS");
+        setTimeout(()=>{
+            window.location.href="/"
+        },1800)
+    }
 }
 
+async function blockeduesr() {
+    let friendrequestlistdiv = document.getElementById("blockedfirendsuserlist");
+
+    let result = await fetch(`api/blockedlist/${localStorage.getItem("userId")}`)
+
+    result = await result.json()
+
+    friendrequestlistdiv.innerHTML = "<br>";
+
+    result.data.forEach(user => {
+        const userDiv = document.createElement("div");
+
+        userDiv.innerHTML = `
+            <span>${user.username}</span>
+            <button onclick="acceptRequest(${user.id},4)">UnBlock</button>
+        `;
+        friendrequestlistdiv.appendChild(userDiv);
+    });
+    friendrequestlistdiv=friendrequestlistdiv+"<br>";
+    // openconnectionpage("blockedfriends")
+}
+
+async function openconnectionpage(pagename)
+{
+    let div = document.getElementById("connectionpage");
+    div.innerHTML = "";
+    let content = "";
+
+    openedpage = pagename;
+
+    if(pagename=="searchpage"){
+
+
+        content = content + `<div class="card-wrapper">
+                <h1>Search Friends</h1>
+                <div class="search-box">
+                    <label for="searchuser">Search Username</label>
+                    <input id="searchuser" type="text" placeholder="Type a username to search...">
+                </div>
+                <div id="searchuserlist" class="list-container">
+                </div>
+            </div>`
+
+        div.innerHTML = content;
+
+        let searchuserinputbar = document.getElementById("searchuser");
+
+        searchuserinputbar.addEventListener("input",(event)=>{
+            if(event.target.value.length>2)
+            {
+                getSearchuser(event.target.value);
+            }
+        })
+
+    }
+    else if(pagename=="requestspage"){
+
+        content = content + `
+        <div class="card-wrapper">
+            <h1>Received Requests</h1>
+            <div id="friendrequestlist" class="list-container"></div>
+            </div>
+        </div>
+        `
+        div.innerHTML = content;
+        friendrequestlist();
+        console.log("HERE")
+    }
+    else if(pagename=="blockedfriends"){
+
+        content = content + `
+        <div class="card-wrapper">
+            <h1>Blocked Friends</h1>
+            <div id="blockedfirendsuserlist" class="list-container">
+            </div>
+        </div>`
+
+        div.innerHTML = content;
+        console.log("BLOCKEED USER PAGE")
+        blockeduesr();
+    }
+    else if(pagename=="friendslistpage")
+    {
+        content = content + `
+        <div class="card-wrapper">
+            <h1>Friends</h1>
+            <div id="friendslist" class="list-container">
+            </div>
+        </div>`
+        div.innerHTML = content;
+
+        let result = await fetch(`api/friendslist/${localStorage.getItem("userId")}`)
+
+        result = await result.json()
+
+        friendslists = result.data;
+        let videouserlist = document.getElementById("friendslist");
+        videouserlist.innerHTML = "<br>";
+        result.data.forEach(user => {
+            if (user.status === "accepted") {
+                const card = document.createElement("div");
+                card.className = `user-card`;
+                card.innerHTML = `
+                <span>${user.username}</span>
+                    <button onclick="acceptRequest(${user.id},3)">Block</button>
+                `;
+                videouserlist.appendChild(card);
+            }
+        });
+    }
+}
 function openUserPage(user) {
 
     if(pc && (pc.connectionState === "connected" ||pc.connectionState === "connecting"))
@@ -341,17 +490,19 @@ function endCall(userid)
 document.addEventListener("DOMContentLoaded",()=>{
     console.log("FIle Initiated");
 
-    let searchuserinputbar = document.getElementById("searchuser");
+    // let searchuserinputbar = document.getElementById("searchuser");
 
-    searchuserinputbar.addEventListener("input",(event)=>{
-        if(event.target.value.length>2)
-        {
-            getSearchuser(event.target.value);
-        }
-    })
+    // searchuserinputbar.addEventListener("input",(event)=>{
+    //     if(event.target.value.length>2)
+    //     {
+    //         getSearchuser(event.target.value);
+    //     }
+    // })
     document.getElementById("userdetails1").innerHTML = localStorage.getItem("username")
     document.getElementById("userdetails2").innerHTML = localStorage.getItem("username")
-    friendrequestlist();
+
+    localuserid = localStorage.getItem("userId")
+    // friendrequestlist();
     friendslist();
 
     // openalertmodel("Page loaded successfully");
@@ -393,7 +544,7 @@ async function createcall (userid) {
 
 async function joincall(userid) {
     try{
-        document.getElementById(`user-card-id_${userid}`).click();
+        document.getElementById(`video-user-card-id_${userid}`).click();
 
         let stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         const localVideo = document.getElementById("localvideo");
@@ -470,47 +621,6 @@ socket.on("receiveice",async function receiveice(data) {
    }
 })
 
-// pc.onicecandidate = (event) => {
-//    if (event.candidate) {
-//         let payload = {
-//             "roomid":roomid,
-//             "icedata":event.candidate,
-//             "userid":userr
-//         }
-//         console.log("Sending ICE")
-
-//         socket.emit("ice",payload)
-//     }
-//     else
-//     {
-//         console.log("WTH")
-//     }
-// }
-
-// pc.ontrack = (event) => {
-//    const remoteVideo = document.getElementById("remotevideo");
-//    remoteVideo.srcObject = event.streams[0];
-// }
-
-
-// pc.onconnectionstatechange = () => {
-//     if (pc.connectionState === "connected") {
-//         console.log("CONNECTED")
-
-//         const callcontrols = document.getElementById("callcontrols");
-//         callcontrols.innerHTML = `
-//             <button style="background: var(--danger)" onclick="endCall(${userr})">End Call</button>
-//         `;
-//     }
-//     else
-//     {
-//         console.log("SOME OTHER STATE : ",pc.connectionState)
-
-//     }
-// };
-
-
-
 socket.on("phonestatus",async function(data) {
     if(data.data=="phoneringing")
     {
@@ -549,7 +659,7 @@ socket.on("phonestatus",async function(data) {
         }
         if(userr)
         {
-            document.getElementById(`user-card-id_${userr}`).click();
+            document.getElementById(`video-user-card-id_${userr}`).click();
         }
         clearInterval(callerinterval);
         clearInterval(receierinterval);
@@ -611,6 +721,311 @@ socket.on("phonestatus",async function(data) {
         console.log("STATE : ",data);
     }
 })
+
+let pendingmessages = {};
+
+async function sendMessage(userid) {
+
+    let tempid = crypto.randomUUID();
+
+    let msg_paylaod = {
+        "roomid":charroomid,
+        "senderid": localuserid,
+        "receiverid":chatuserr,
+        "message":document.getElementById("messageTxt").value,
+        "tempmessageid":tempid
+    };
+
+    let messagediv = document.getElementById("messagelist")
+
+    messagediv.innerHTML = messagediv.innerHTML + `
+
+    <div class="message send">
+        <div class="message-text" id="msgid_${tempid}">
+        ${document.getElementById("messageTxt").value}
+        </div>
+        <div class="message-time">
+            ${formatLocalTime()}
+        </div>
+    </div>
+    `
+    document.getElementById("messageTxt").value = "";
+
+    const list = document.getElementById("messagelist");
+    list.scrollTop = list.scrollHeight;
+
+    pendingmessages[tempid]={"status":"-1"}
+
+    socket.emit("sendprivatemessage",msg_paylaod)
+}
+
+socket.on("messagestatus",(data)=>{
+
+    if(data.type=="msg_ack")
+    {
+        console.log("MSG ACKNOLEDMEND")
+        let div = document.getElementById(`msgid_${data.tempid}`)
+        div.id = `msgid_${data.lastmsgid}`;
+
+        div.classList.remove('seen')
+        div.classList.remove('received')
+        div.classList.remove('send')
+
+        div.classList.add(data.status)
+    }
+    else{
+        console.log("UPDATING MSG STATUS")
+
+        let div = document.getElementById(`msgid_${data.lastmsgid}`)
+
+        div.classList.remove('seen')
+        div.classList.remove('received')
+        div.classList.remove('send')
+
+        div.classList.add(data.status)
+    }
+    // let div = document.getElementById("")
+})
+
+socket.on("receiveprivatemessage",(data)=>{
+
+
+    let messagediv = document.getElementById("messagelist")
+
+    if(!messagediv)
+    {
+        const result = friendslists.find(item => item.id === Number(data.senderid));
+
+        console.log("NO MESSAGE DIV FOUND");
+        window.alert(`RECEIVED MESSAGE FROM ${result.username}`)
+        return;
+    }
+    if(data.senderid!=chatuserr)
+    {
+        const result = friendslists.find(item => item.id === Number(data.senderid));
+
+        console.log("ITS NOT THE USER")
+        window.alert(`RECEIVED MESSAGE FROM ${result.username}`)
+
+        return;
+    }
+
+    let content = messagediv.innerHTML;
+
+    let tempdata = data.data;
+
+
+    if(tempdata.user_id==localuserid)
+    {
+        content = content +`
+        <div class="message send">
+            <div class="message-text" id="msgid_${data.lastmsgid}">
+                ${tempdata.message}
+            </div>
+            <div class="message-time">
+                ${formatLocalTime()}
+                
+            </div>
+        </div>`;
+    }else{
+        content = content + `
+        <div class="message received" id="msgid_${data.lastmsgid}">
+            <div class="message-text">
+                ${tempdata.message}
+            </div>
+            <div class="message-time">
+                ${formatLocalTime()}
+            </div>
+        </div>`;
+    }
+    
+    messagediv.innerHTML = content;
+
+    const list = document.getElementById("messagelist");
+    list.scrollTop = list.scrollHeight;
+
+
+    console.log("HERE IT COMES",data);
+
+    socket.emit("messagestatus",{
+        "lastmsgid":data.lastmsgid,
+        "senderid":data.senderid,
+        "status":"seen"
+    })
+
+
+
+
+})
+
+let messageid = 0;
+
+function formatTime(timestamp)
+{
+    const date = new Date(timestamp);
+
+    return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
+
+
+function rendermessagedata(messagelist)
+{
+    let messagediv = document.getElementById("messagelist")
+
+    let notseenid = [];
+
+    let oldHeight = messagediv.scrollHeight;
+    let oldScroll = messagediv.scrollTop;
+
+    let content = messagediv.innerHTML;
+
+    if(messagelist.length>0)
+    {
+        messageid = messagelist[messagelist.length-1].id;
+    }
+
+    for (const msg of messagelist) {
+
+        if(msg.message_status!="seen")
+        {
+            notseenid.push(msg.id)
+        }
+        if(msg.user_id==localuserid)
+        {
+            content = `
+            <div class="message send">
+                <div class="message-text ${msg.message_status}">
+                    ${msg.message}
+                </div>
+                <div class="message-time">
+                    ${formatTime(msg.created_at)}
+                </div>
+            </div>` + content;
+        }else{
+            content = `
+            <div class="message received">
+                <div class="message-text">
+                    ${msg.message}
+                </div>
+                <div class="message-time">
+                    ${formatTime(msg.created_at)}
+                </div>
+            </div>` + content;
+        }
+    }
+
+    
+    messagediv.innerHTML = content;
+    messagediv.scrollTop = messagediv.scrollHeight - oldHeight + oldScroll;
+
+    for (const id of notseenid) {
+        socket.emit("messagestatus",{
+            "senderid":chatuserr,
+            "lastmsgid":id,
+            "status":"seen"
+        })
+    }
+
+
+}
+
+async function loadoldmessages(roomid) {
+
+
+    let response = await fetch(`api/getmessage/${roomid}/${messageid}`)
+
+    let result = await response.json();
+
+    // console.log(result.data[result.data.length-1].id)
+
+    // messageid = result.data[result.data.length-1].id;
+    if(result.data.length<=0)
+    {
+        console.log("NO NEW MESSAGES");
+        return;
+    }
+    // if(result.data[result.data.length-1].id==messageid)
+    // {
+    //     console.log("NO NEW MESSAGES");
+    //     return;
+    // }
+    rendermessagedata(result.data);
+
+
+}
+
+async function getapimessage(roomid,before) {
+
+    let response = await fetch(`api/getmessage/${roomid}/${before}`)
+
+    let result = await response.json();
+
+    rendermessagedata(result.data);
+
+    const list = document.getElementById("messagelist");
+    list.scrollTop = list.scrollHeight;
+
+    list.addEventListener("scroll", () => {
+
+        if (list.scrollTop ===0) {
+            console.log("Near top");
+            loadoldmessages(roomid);
+        }
+
+    });
+
+
+
+}
+
+function formatLocalTime() {
+    return new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+async function openUserPagechat(userdetails) {
+
+    charroomid = 0;
+    chatuserr = 0;
+
+    let response = await fetch(`api/getroomid/${userdetails.id}/${localuserid}`)
+
+    let result = await response.json()
+    charroomid = result.data[0].room_id;
+
+    chatuserr = userdetails.id;
+
+    document.getElementById("chatAreatext").innerHTML = `
+        <div class="call-container">
+            <div class="call-header">
+                <h2>${userdetails.username}</h2>
+            </div>
+            <div id="messagelist">
+            </div>
+
+        </div>
+        <div class="text-controls">
+            <input type="text" id="messageTxt">
+            <button onclick="sendMessage(${userdetails.id})">Send</button>
+        </div>
+    `;
+
+    const input = document.getElementById("messageTxt");
+
+    input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            sendMessage(2);
+        }
+    });
+
+    getapimessage(charroomid,0)
+}
 async function friendslist() {
     
     let result = await fetch(`api/friendslist/${localStorage.getItem("userId")}`)
@@ -619,13 +1034,15 @@ async function friendslist() {
 
     friendslists = result.data;
 
-    let videouserlist = document.getElementById("userslist");
+    let videouserlist = document.getElementById("userslistvideo");
+    let chatuserlist = document.getElementById("userslisttext");
+
     videouserlist.innerHTML = "<br>";
     result.data.forEach(user => {
         if (user.status === "accepted") {
             const card = document.createElement("div");
             card.className = `user-card`;
-            card.id = `user-card-id_${user.id}`
+            card.id = `video-user-card-id_${user.id}`
             card.innerHTML = `
                 <h3>${user.username}</h3>
             `;
@@ -635,7 +1052,27 @@ async function friendslist() {
             videouserlist.appendChild(card);
         }
     });
+
     videouserlist=videouserlist+"<br>";
+
+    chatuserlist.innerHTML = "<br>";
+    result.data.forEach(user => {
+        if (user.status === "accepted") {
+            const card = document.createElement("div");
+            card.className = `user-card`;
+            card.id = `chat-user-card-id_${user.id}`
+            card.innerHTML = `
+                <h3>${user.username}</h3>
+            `;
+            card.addEventListener("click", () => {
+                openUserPagechat(user);
+            });
+            chatuserlist.appendChild(card);
+        }
+    });
+    chatuserlist=chatuserlist+"<br>";
+
+
 }
 
 socket.on("connect",()=>{
@@ -649,12 +1086,9 @@ function showPage(pageName) {
 
     let pages = document.querySelectorAll(".page");
 
-    pages.forEach(page => {
-        page.classList.remove("active");
-    });
-
     if(pageName=="requests"){
-        friendrequestlist();
+        // friendrequestlist();
+        console.log("NOTHING")
     }
     else if(pageName=="videochat"){
         friendslist();
@@ -663,11 +1097,23 @@ function showPage(pageName) {
 
         document.getElementById("searchuser").value = "";
         document.getElementById("searchuserlist").innerHTML = "";
-
+    }
+    else if(pageName=="textchat")
+    {
+        if(pc && (pc.connectionState === "connected" ||pc.connectionState === "connecting"))
+        {
+            openalertmodel("You are already in a call")
+            return;
+        }
     }
     else{
         console.log("CLICKED SOME OTHER PAGE : ",pageName)
     }
+
+    pages.forEach(page => {
+        page.classList.remove("active");
+    });
+
 
     document.getElementById(pageName)
             .classList.add("active");

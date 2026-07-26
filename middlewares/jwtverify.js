@@ -22,6 +22,7 @@ function verifyjwt(req,res,next)
                 }
                 else
                 {
+                    console.log("WHY REDIRECTION")
                     next();
                 }
             }

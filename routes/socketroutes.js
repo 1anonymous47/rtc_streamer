@@ -6,6 +6,8 @@ const crypto = require('node:crypto');
 const ROOMS = socketpackage.ROOMS;
 const CLIENT_ROOMS = {};
 
+const pool = require("../packages/dbconn")
+
 
 io.on("connection", (socket) => {
 
@@ -233,6 +235,63 @@ io.on("connection", (socket) => {
                 console.log("ROOM NOT FOUND")
             }
 
+        }
+    })
+
+    socket.on("sendprivatemessage",async (data)=>{
+        try{
+            let clientsocket = CLIENT_ROOMS[data.receiverid];
+            if(clientsocket && clientsocket.connected)
+            {
+                let result = await pool.query("INSERT INTO tbl_private_messages (room_id,user_id,message,message_status) VALUES($1,$2,$3,'received') RETURNING id",[data.roomid, data.senderid,data.message])
+                
+                let lastmsgid = result.rows[0].id;
+                socket.emit("messagestatus",{
+                    "lastmsgid":lastmsgid,
+                    "tempid":data.tempmessageid,
+                    "status":"received",
+                    "type":"msg_ack"
+                })
+
+                clientsocket.emit("receiveprivatemessage",{
+                    "lastmsgid":lastmsgid,
+                    "senderid":socket.userid,
+                    "data":data
+                })    
+            }else
+            {
+                let result = await pool.query("INSERT INTO tbl_private_messages (room_id,user_id,message,message_status) VALUES($1,$2,$3,'send') RETURNING id",[data.roomid, data.senderid,data.message])
+                socket.emit("messagestatus",{
+                    "lastmsgid":result.rows[0].id,
+                    "tempid":data.tempmessageid,
+                    "status":"send",
+                    "type":"msg_ack"
+                })
+            }
+        }catch(err)
+        {
+            console.log("ERROR SAVEING MESSAGE",err)
+        }
+        console.log(data.message)
+    })
+    socket.on("messagestatus",async (data)=>{
+        try{
+            console.log("here",data)
+            let clientsocket = CLIENT_ROOMS[data.senderid]
+            if(clientsocket && clientsocket.connected)
+            {
+                clientsocket.emit("messagestatus",{
+                    "lastmsgid":data.lastmsgid,
+                    "type":"msg_status",
+                    "status":data.status
+                })
+                let result = await pool.query("UPDATE tbl_private_messages SET message_status = 'seen' WHERE id = $1",[data.lastmsgid])
+
+            }
+        }catch(err)
+        {
+            console.log(err)
+            console.log("ERROR SENDING STATUS")
         }
     })
 
