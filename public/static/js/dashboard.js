@@ -380,9 +380,9 @@ function setupDataChannel(channel) {
 // =============================================================================
 
 /**
- * Validate and Initiate Outgoing Call (Voice or Video)
+ * Validate and Initiate Outgoing Video Call
  */
-async function initiateCall(targetUser, isVoiceOnly = false) {
+async function initiateCall(targetUser) {
     playCyberChirp(400, 800);
 
     // VALIDATION: Check if already in an active call!
@@ -411,33 +411,30 @@ async function initiateCall(targetUser, isVoiceOnly = false) {
 
     try {
         AppState.activePeer = targetUser;
-        AppState.isVoiceOnly = isVoiceOnly;
+        AppState.isVoiceOnly = false;
         AppState.callStatus = "calling";
 
-        // Display Outgoing Dialing Hologram
+        // Display Outgoing Dialing Modal
         openOutgoingModal(targetUser.username);
 
-        // Acquire local media streams
-        const mediaConstraints = {
-            audio: true,
-            video: isVoiceOnly ? false : { width: { ideal: 1280 }, height: { ideal: 720 } }
-        };
-
+        // Acquire local video + audio stream
         let stream;
         try {
-            stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+            stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+            });
         } catch (mediaErr) {
-            console.warn("Camera unavailable, falling back to audio-only:", mediaErr);
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            AppState.isVoiceOnly = true;
+            console.warn("High-definition camera unavailable, attempting standard video stream:", mediaErr);
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
         }
         
         AppState.localStream = stream;
 
         // Render full call stage for caller
-        renderActiveCallStage(targetUser, isVoiceOnly);
+        renderActiveCallStage(targetUser);
 
-        // Attach local preview video if video is on
+        // Attach local preview video
         const localVideo = document.getElementById("localvideo");
         if (localVideo) {
             localVideo.srcObject = stream;
@@ -497,7 +494,7 @@ function handleIncomingCallSignal(data) {
 /**
  * Receiver Accepts Incoming Call
  */
-async function acceptIncomingCall(withVideo = true) {
+async function acceptIncomingCall() {
     stopIncomingRingtone();
     closeIncomingModal();
     playCyberChirp(600, 1000);
@@ -505,23 +502,23 @@ async function acceptIncomingCall(withVideo = true) {
     if (!AppState.activePeer) return;
 
     try {
-        AppState.isVoiceOnly = !withVideo;
+        AppState.isVoiceOnly = false;
         AppState.callStatus = "connected";
 
         // Render Call Stage UI
         switchMainScreen("videochat");
-        renderActiveCallStage(AppState.activePeer, AppState.isVoiceOnly);
+        renderActiveCallStage(AppState.activePeer);
 
-        // Acquire receiver local stream
+        // Acquire receiver local stream (video + audio)
         let stream;
         try {
             stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
-                video: withVideo ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } }
             });
         } catch (e) {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            AppState.isVoiceOnly = true;
+            console.warn("High-definition camera unavailable, attempting standard video stream:", e);
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
         }
         
         AppState.localStream = stream;
@@ -637,6 +634,16 @@ function handleCallCleanup() {
     // Hide banners and floating PiP widget
     hideActiveCallBanner();
     hideFloatingPiPWidget();
+
+    // Remove in-call indicator classes
+    const videoChatSection = document.getElementById("videochat");
+    if (videoChatSection) {
+        videoChatSection.classList.remove("in-call");
+    }
+    const mainViewport = document.querySelector(".main-content-viewport");
+    if (mainViewport) {
+        mainViewport.classList.remove("in-call-active");
+    }
 
     // Reset Call Stage to standby idle state if on call screen
     if (AppState.currentScreen === "videochat") {
@@ -808,7 +815,7 @@ function updateCallScreenUI() {
 
             // Re-render / re-attach video to full call stage elements
             if (AppState.activePeer) {
-                renderActiveCallStage(AppState.activePeer, AppState.isVoiceOnly);
+                renderActiveCallStage(AppState.activePeer);
                 
                 // Re-bind streams
                 const remoteVideo = document.getElementById("remotevideo");
@@ -839,7 +846,7 @@ function showActiveCallBanner() {
 
     if (banner && AppState.activePeer) {
         peerNameEl.innerText = AppState.activePeer.username;
-        typeBadge.innerText = AppState.isVoiceOnly ? "VOICE" : "VIDEO";
+        typeBadge.innerText = "VIDEO";
         banner.style.display = "flex";
     }
 }
@@ -853,17 +860,12 @@ function showFloatingPiPWidget() {
     const pipWidget = document.getElementById("floatingCallWidget");
     const pipTitle = document.getElementById("pipUserName");
     const pipVideo = document.getElementById("pipRemoteVideo");
-    const pipVoiceVis = document.getElementById("pipVoiceVisualizer");
 
     if (pipWidget && AppState.activePeer) {
         pipTitle.innerText = AppState.activePeer.username;
         
-        if (AppState.isVoiceOnly) {
-            pipVideo.style.display = "none";
-            pipVoiceVis.style.display = "flex";
-        } else {
+        if (pipVideo) {
             pipVideo.style.display = "block";
-            pipVoiceVis.style.display = "none";
             if (AppState.remoteStream) {
                 pipVideo.srcObject = AppState.remoteStream;
             }
@@ -963,9 +965,18 @@ function toggleFullscreenCall() {
 // CALL STAGE RENDERING
 // =============================================================================
 
-function renderActiveCallStage(peerUser, isVoiceOnly = false) {
+function renderActiveCallStage(peerUser) {
     const stageArea = document.getElementById("chatArea");
     if (!stageArea) return;
+
+    const videoChatSection = document.getElementById("videochat");
+    if (videoChatSection) {
+        videoChatSection.classList.add("in-call");
+    }
+    const mainViewport = document.querySelector(".main-content-viewport");
+    if (mainViewport) {
+        mainViewport.classList.add("in-call-active");
+    }
 
     stageArea.innerHTML = `
         <div class="active-call-arena">
@@ -989,26 +1000,7 @@ function renderActiveCallStage(peerUser, isVoiceOnly = false) {
             <!-- Video Stream Surfaces -->
             <div class="video-stream-stage">
                 <video id="remotevideo" autoplay playsinline></video>
-                <video id="localvideo" autoplay muted playsinline style="${isVoiceOnly ? 'display:none;' : ''}"></video>
-
-                <!-- Voice Mode Holographic Equalizer -->
-                <div id="voiceVisualizerStage" class="voice-visualizer-stage" style="${isVoiceOnly ? 'display:flex;' : 'display:none;'}">
-                    <div class="quantum-audio-orb">
-                        <div class="audio-pulse-ring r1"></div>
-                        <div class="audio-pulse-ring r2"></div>
-                        <div class="audio-pulse-ring r3"></div>
-                        <div class="orb-inner-sphere">
-                            <div class="audio-wave-bars">
-                                <div class="wave-bar"></div>
-                                <div class="wave-bar"></div>
-                                <div class="wave-bar"></div>
-                                <div class="wave-bar"></div>
-                                <div class="wave-bar"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <span class="voice-status-label">Voice Call Active</span>
-                </div>
+                <video id="localvideo" autoplay muted playsinline></video>
             </div>
 
             <!-- Floating Controls Dock -->
@@ -1034,6 +1026,15 @@ function renderActiveCallStage(peerUser, isVoiceOnly = false) {
 }
 
 function resetCallStageToIdle() {
+    const videoChatSection = document.getElementById("videochat");
+    if (videoChatSection) {
+        videoChatSection.classList.remove("in-call");
+    }
+    const mainViewport = document.querySelector(".main-content-viewport");
+    if (mainViewport) {
+        mainViewport.classList.remove("in-call-active");
+    }
+
     const stageArea = document.getElementById("chatArea");
     if (!stageArea) return;
 
@@ -1045,8 +1046,8 @@ function resetCallStageToIdle() {
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
                 </div>
             </div>
-            <h3 class="standby-title">Ready for Calls</h3>
-            <p class="standby-desc">Select a contact from the left list to start a video or voice call.</p>
+            <h3 class="standby-title">Ready for Video Calls</h3>
+            <p class="standby-desc">Select a contact from the left list to start a video call.</p>
             
             <div class="device-self-check-card">
                 <div class="check-title">Hardware Self-Test</div>
@@ -1250,13 +1251,9 @@ async function renderFriendsListPage() {
                     <span class="entity-username">${user.username}</span>
                 </div>
                 <div class="entity-actions">
-                    <button class="action-btn-pill voice" onclick="initiateCall({ id: ${user.id}, username: '${user.username}' }, true)" title="Voice Call">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path></svg>
-                        <span>Voice</span>
-                    </button>
-                    <button class="action-btn-pill video" onclick="initiateCall({ id: ${user.id}, username: '${user.username}' }, false)" title="Video Call">
+                    <button class="action-btn-pill video" onclick="initiateCall({ id: ${user.id}, username: '${user.username}' })" title="Start Video Call">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-                        <span>Video</span>
+                        <span>Call</span>
                     </button>
                     <button class="action-btn-pill chat" onclick="openChatFromNetwork({ id: ${user.id}, username: '${user.username}' })" title="Send Message">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -1496,10 +1493,7 @@ async function loadCallRoster() {
                     <span class="roster-user-name">${user.username}</span>
                 </div>
                 <div class="roster-quick-call-btns">
-                    <button class="roster-quick-btn" onclick="event.stopPropagation(); initiateCall({ id: ${user.id}, username: '${user.username}' }, true);" title="Voice Call">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path></svg>
-                    </button>
-                    <button class="roster-quick-btn" onclick="event.stopPropagation(); initiateCall({ id: ${user.id}, username: '${user.username}' }, false);" title="Video Call">
+                    <button class="roster-quick-btn" onclick="event.stopPropagation(); initiateCall({ id: ${user.id}, username: '${user.username}' });" title="Start Video Call">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
                     </button>
                 </div>
@@ -1545,22 +1539,23 @@ function openUserPage(user) {
                             <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
                         </div>
                     </div>
-                    <h3 class="standby-title">Start a Call with ${user.username}</h3>
-                    <p class="standby-desc">Choose video or voice call to connect directly.</p>
+                    <h3 class="standby-title">Start a Video Call with ${user.username}</h3>
+                    <p class="standby-desc">Direct WebRTC peer-to-peer encrypted video call.</p>
                     <div style="display:flex; gap:14px; margin-top:10px;">
-                        <button class="hero-action-btn primary" onclick="initiateCall({ id: ${user.id}, username: '${user.username}' }, false)">
+                        <button class="hero-action-btn primary" onclick="initiateCall({ id: ${user.id}, username: '${user.username}' })">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
                             <span>Start Video Call</span>
-                        </button>
-                        <button class="hero-action-btn secondary" onclick="initiateCall({ id: ${user.id}, username: '${user.username}' }, true)">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path></svg>
-                            <span>Start Voice Call</span>
                         </button>
                     </div>
                 </div>
             </div>
         </div>
     `;
+
+    // On mobile devices, smoothly scroll down to the stage area
+    if (window.innerWidth <= 768) {
+        stageArea.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
 // Filter Rosters
@@ -1648,13 +1643,9 @@ async function openUserPagechat(userdetails) {
                     </div>
                 </div>
                 <div class="chat-header-actions">
-                    <button class="chat-action-call-btn voice" onclick="initiateCall({ id: ${userdetails.id}, username: '${userdetails.username}' }, true)">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path></svg>
-                        <span>Voice</span>
-                    </button>
-                    <button class="chat-action-call-btn video" onclick="initiateCall({ id: ${userdetails.id}, username: '${userdetails.username}' }, false)">
+                    <button class="chat-action-call-btn video" onclick="initiateCall({ id: ${userdetails.id}, username: '${userdetails.username}' })" title="Start Video Call">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-                        <span>Video</span>
+                        <span>Video Call</span>
                     </button>
                 </div>
             </div>
